@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Prompt Writing Canvas</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <!-- Main Layout Container -->
+  <div id="layout">
+    <!-- Sidebar container with resizer -->
+    <div id="sidebarContainer">
+      <div id="sidebar">
+        <h2>Prompts</h2>
+        <ul id="promptTabs"></ul>
+        <button id="addPromptBtn">New (ctrl + P)</button>
+      </div>
+      <div id="sidebarResizer"></div>
+    </div>
+
+    <!-- Main area container -->
+    <div id="mainContainer">
+      <div id="controls">
+        <button id="toggleSidebarBtn" title="Toggle Sidebar">
+          <svg width="16" height="16" viewBox="0 0 16 16">
+            <rect x="0" y="0" width="6" height="16" fill="currentColor"></rect>
+            <rect x="6" y="0" width="10" height="16" fill="none" stroke-width="1"></rect>
+          </svg>
+        </button>
+        <button id="toggleVersionHistoryBtn" title="Toggle Version History">
+          <svg width="16" height="16" viewBox="0 0 16 16">
+            <rect x="0" y="0" width="16" height="10" fill="none" stroke-width="1"></rect>
+            <rect x="0" y="10" width="16" height="6" fill="currentColor"></rect>
+          </svg>
+        </button>
+        <button id="instructionsBtn">Instructions</button>
+        <button id="saveVersionBtn">Save Version (Ctrl+S)</button>
+        <button id="copyPromptBtn">Copy Prompt (no comments)</button>
+        <button id="exportFullBtn">Export Full Text</button>
+        <span id="currentPromptLabel">No prompt loaded</span>
+      </div>
+
+      <div id="editorContainer">
+        <div id="editor" contenteditable="true" spellcheck="false"></div>
+        <div id="versionHistoryResizer"></div>
+        <div id="versionHistory"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Instructions -->
+  <div id="instructionsModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeModal">&times;</span>
+      <div id="instructionsContent"></div>
+    </div>
+  </div>
+
+  <!-- Load JavaScript modules -->
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/features/editor.js"></script>
+  <script src="js/features/resizers.js"></script>
+  <script src="js/features/keyboard.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

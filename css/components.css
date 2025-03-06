@@ -1,0 +1,86 @@
+/* --- Editor --- */
+#editor {
+  flex: 1;
+  padding: 10px;
+  font-family: monospace;
+  outline: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* --- Controls --- */
+#controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background: #fff;
+  padding: 4px 6px;
+}
+
+#controls button svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+#currentPromptLabel {
+  font-weight: bold;
+  margin-left: auto;
+}
+
+/* --- Sidebar Elements --- */
+#sidebar h2 {
+  font-size: 1.2em;
+  margin-top: 0;
+}
+
+#promptTabs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.prompt-tab {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 5px 0;
+  padding: 5px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  background: #fff;
+  transition: background-color 0.2s;
+}
+
+.prompt-tab.active-prompt {
+  background: #ccc !important;
+}
+
+.prompt-tab button {
+  font-size: 0.8em;
+  padding: 2px 5px;
+  margin-left: 5px;
+}
+
+#addPromptBtn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 5px;
+}
+
+/* Style for tag snippet feature */
+.tagSnippet {
+  display: inline-block;
+}
+
+.tagSnippet .tagName {
+  border-bottom: 1px dashed #aaa;
+  min-width: 20px;
+  outline: none;
+}
+
+.tagSnippet .tagNameSync {
+  color: #555;
+}
