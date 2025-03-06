@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Prompt Writing Canvas</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* --- Layout Containers --- */
+    #layout {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* --- Sidebar Container & Resizer --- */
+    #sidebarContainer {
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 250px;
+      background: #f4f4f4;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      transition: width 0.2s;
+    }
+    #sidebarResizer {
+      width: 5px;
+      cursor: col-resize;
+      background: #ddd;
+    }
+    #sidebar h2 {
+      font-size: 1.2em;
+      margin-top: 0;
+    }
+    #promptTabs {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .prompt-tab {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 5px 0;
+      padding: 5px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      background: #fff;
+      transition: background-color 0.2s;
+    }
+    .prompt-tab.active-prompt {
+      background: #ccc !important;
+    }
+    .prompt-tab button {
+      font-size: 0.8em;
+      padding: 2px 5px;
+      margin-left: 5px;
+    }
+    #addPromptBtn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 5px;
+    }
+
+    /* --- Main Container & Version History Resizer --- */
+    #mainContainer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #controls {
+      padding: 10px;
+      background: #eee;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    #controls button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: #fff;
+      padding: 4px 6px;
+    }
+    #controls button svg {
+      fill: currentColor;
+      stroke: currentColor;
+    }
+    #currentPromptLabel {
+      font-weight: bold;
+      margin-left: auto;
+    }
+    /* Editor + Resizer + Version History stack vertically */
+    #editorContainer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #editor {
+      flex: 1;
+      padding: 10px;
+      font-family: monospace;
+      outline: none;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    /* Here we override the previous auto-completion. We remove the old code and use our new snippet insertion. */
+    /* Resizer between editor and version history */
+    #versionHistoryResizer {
+      height: 5px;
+      cursor: row-resize;
+      background: #ddd;
+    }
+    #versionHistory {
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      overflow-y: auto;
+      height: 150px;
+      display: block;
+      transition: height 0.2s;
+    }
+
+    /* Style for our inserted tag snippet */
+    .tagSnippet {
+      display: inline-block;
+      /* Allow editing of the tag name only */
+    }
+    .tagSnippet .tagName {
+      border-bottom: 1px dashed #aaa;
+      min-width: 20px;
+      outline: none;
+    }
+    .tagSnippet .tagNameSync {
+      color: #555;
+    }
+
+    /* Modal for instructions */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background: #fff;
+      margin: 10% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 600px;
+      border-radius: 4px;
+    }
+    .close {
+      float: right;
+      font-size: 1.2em;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Layout Container -->
+  <div id="layout">
+    <!-- Sidebar container with resizer -->
+    <div id="sidebarContainer">
+      <div id="sidebar">
+        <h2>Prompts</h2>
+        <ul id="promptTabs"></ul>
+        <button id="addPromptBtn">New (ctrl + P)</button>
+      </div>
+      <div id="sidebarResizer"></div>
+    </div>
+
+    <!-- Main area container with controls + editor + version history -->
+    <div id="mainContainer">
+      <div id="controls">
+        <!-- Toggle sidebar button (icon) -->
+        <button id="toggleSidebarBtn" title="Toggle Sidebar">
+          <svg width="16" height="16" viewBox="0 0 16 16">
+            <rect x="0" y="0" width="6" height="16" fill="currentColor"></rect>
+            <rect x="6" y="0" width="10" height="16" fill="none" stroke-width="1"></rect>
+          </svg>
+        </button>
+
+        <!-- Toggle version history button (icon) -->
+        <button id="toggleVersionHistoryBtn" title="Toggle Version History">
+          <svg width="16" height="16" viewBox="0 0 16 16">
+            <rect x="0" y="0" width="16" height="10" fill="none" stroke-width="1"></rect>
+            <rect x="0" y="10" width="16" height="6" fill="currentColor"></rect>
+          </svg>
+        </button>
+
+        <button id="instructionsBtn">Instructions</button>
+        <button id="saveVersionBtn">Save Version (Ctrl+S)</button>
+        <button id="copyPromptBtn">Copy Prompt (no comments)</button>
+        <button id="exportFullBtn">Export Full Text</button>
+        <span id="currentPromptLabel">No prompt loaded</span>
+      </div>
+
+      <div id="editorContainer">
+        <div id="editor" contenteditable="true" spellcheck="false"></div>
+        <div id="versionHistoryResizer"></div>
+        <div id="versionHistory"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Instructions -->
+  <div id="instructionsModal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="closeModal">&times;</span>
+      <p>
+        <strong>Instructions:</strong><br>
+        - When you type "<", the program will automatically insert a complete tag snippet:<br>
+          &nbsp;&nbsp;&lt;<span class="tagName" contenteditable="true"></span>&gt;<br>
+          &nbsp;&nbsp;(two line breaks)<br>
+          &nbsp;&nbsp;&lt;/<span class="tagNameSync"></span>&gt;<br>
+        - The caret is placed inside the opening tag's name so you can immediately type the tag name. As you type, the closing tag updates accordingly.<br>
+        - Your work is saved in session when you switch prompts or click other controls.<br>
+        - Prompts are managed in the left sidebar. Click a prompt tab to open it.<br>
+        - Use the "New (ctrl + P)" button to create a new prompt (you will be asked to type its name).<br>
+        - To delete a prompt, click the "Del" button next to it and type its name to confirm deletion.<br>
+        - In the version history at the bottom, you can "Edit Name" to rename a version or "Delete" a version (if it’s the only version, the whole prompt is deleted).<br>
+        - Keyboard shortcuts:<br>
+        &nbsp;&nbsp;Ctrl+S: Save Version<br>
+        &nbsp;&nbsp;Ctrl+P: New Prompt<br>
+        &nbsp;&nbsp;Ctrl+D: Delete Current Prompt
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ----- Data Model -----
+    // Each prompt has:
+    //   content: current HTML in the editor
+    //   versions: array of { content, timestamp, name }
+    let prompts = {};
+    let currentPrompt = null;
+
+    // ----- UI References -----
+    const layout = document.getElementById('layout');
+
+    // Sidebar and Resizer
+    const sidebarContainer = document.getElementById('sidebarContainer');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarResizer = document.getElementById('sidebarResizer');
+
+    // Main Area and Version History Resizer
+    const mainContainer = document.getElementById('mainContainer');
+    const editorContainer = document.getElementById('editorContainer');
+    const editor = document.getElementById('editor');
+    const versionHistoryResizer = document.getElementById('versionHistoryResizer');
+    const versionHistoryDiv = document.getElementById('versionHistory');
+
+    // Controls
+    const promptTabs = document.getElementById('promptTabs');
+    const addPromptBtn = document.getElementById('addPromptBtn');
+    const saveVersionBtn = document.getElementById('saveVersionBtn');
+    const copyPromptBtn = document.getElementById('copyPromptBtn');
+    const currentPromptLabel = document.getElementById('currentPromptLabel');
+    const instructionsBtn = document.getElementById('instructionsBtn');
+    const closeModal = document.getElementById('closeModal');
+    const instructionsModal = document.getElementById('instructionsModal');
+
+    // Toggle Buttons
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const toggleVersionHistoryBtn = document.getElementById('toggleVersionHistoryBtn');
+
+    // ----- Utility Functions -----
+    function autoSaveCurrentPrompt() {
+      if (currentPrompt) {
+        prompts[currentPrompt].content = editor.innerHTML;
+      }
+    }
+
+    function updatePromptTabs() {
+      promptTabs.innerHTML = '';
+      Object.keys(prompts).forEach(name => {
+        const li = document.createElement('li');
+        li.className = 'prompt-tab';
+        if (name === currentPrompt) li.classList.add('active-prompt');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = name;
+        li.appendChild(nameSpan);
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Del';
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const input = prompt('To delete, type the prompt name:');
+          if (input === name) {
+            delete prompts[name];
+            if (currentPrompt === name) {
+              currentPrompt = null;
+              editor.innerHTML = '';
+              currentPromptLabel.textContent = 'No prompt loaded';
+              versionHistoryDiv.innerHTML = '';
+            }
+            updatePromptTabs();
+          } else {
+            alert('Prompt name did not match. Deletion cancelled.');
+          }
+        });
+        li.appendChild(delBtn);
+
+        li.addEventListener('click', () => {
+          autoSaveCurrentPrompt();
+          loadPrompt(name);
+        });
+        promptTabs.appendChild(li);
+      });
+    }
+
+    function loadPrompt(name) {
+      autoSaveCurrentPrompt();
+      currentPrompt = name;
+      editor.innerHTML = prompts[name].content;
+      currentPromptLabel.textContent = 'Current: ' + name;
+      renderVersionHistory();
+      updatePromptTabs();
+    }
+
+    function renderVersionHistory() {
+      versionHistoryDiv.innerHTML = '';
+      if (!currentPrompt) return;
+      const versions = prompts[currentPrompt].versions;
+      if (versions.length === 0) {
+        versionHistoryDiv.textContent = 'No versions saved yet.';
+        return;
+      }
+      const ul = document.createElement('ul');
+      versions.forEach((v, index) => {
+        const li = document.createElement('li');
+        li.style.cursor = 'pointer';
+        li.style.border = '1px solid #ddd';
+        li.style.margin = '3px 0';
+        li.style.padding = '2px';
+        li.innerHTML = `<strong>${v.name}</strong> - ${v.timestamp} `;
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit Name';
+        editBtn.style.fontSize = '0.8em';
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const newName = prompt('Enter new version name:', v.name);
+          if (newName !== null && newName.trim() !== '') {
+            v.name = newName.trim();
+            renderVersionHistory();
+          }
+        });
+        li.appendChild(editBtn);
+
+        const deleteVerBtn = document.createElement('button');
+        deleteVerBtn.textContent = 'Delete';
+        deleteVerBtn.style.fontSize = '0.8em';
+        deleteVerBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const input = prompt('To delete this version, type its name:');
+          if (input === v.name) {
+            if (versions.length === 1) {
+              delete prompts[currentPrompt];
+              currentPrompt = null;
+              editor.innerHTML = '';
+              currentPromptLabel.textContent = 'No prompt loaded';
+              versionHistoryDiv.innerHTML = '';
+              updatePromptTabs();
+            } else {
+              versions.splice(index, 1);
+              prompts[currentPrompt].versions = versions;
+              renderVersionHistory();
+            }
+          } else {
+            alert('Version name did not match. Deletion cancelled.');
+          }
+        });
+        li.appendChild(deleteVerBtn);
+
+        li.addEventListener('click', () => {
+          if (confirm(`Load version "${v.name}"? Unsaved changes will be lost.`)) {
+            editor.innerHTML = v.content;
+            prompts[currentPrompt].content = v.content;
+          }
+        });
+        ul.appendChild(li);
+      });
+      versionHistoryDiv.appendChild(ul);
+    }
+
+    function newPrompt() {
+      autoSaveCurrentPrompt();
+      const name = prompt('Enter a new prompt name:');
+      if (!name || !name.trim()) {
+        alert('Prompt name cannot be empty.');
+        return;
+      }
+      const trimmed = name.trim();
+      if (prompts[trimmed]) {
+        alert('A prompt with that name already exists.');
+        return;
+      }
+      prompts[trimmed] = { content: '', versions: [] };
+      currentPrompt = trimmed;
+      editor.innerHTML = '';
+      currentPromptLabel.textContent = 'Current: ' + trimmed;
+      updatePromptTabs();
+      renderVersionHistory();
+    }
+
+    function deleteCurrentPrompt() {
+      if (!currentPrompt) {
+        alert('No prompt is currently loaded.');
+        return;
+      }
+      const input = prompt('To delete the current prompt, type its name:');
+      if (input === currentPrompt) {
+        delete prompts[currentPrompt];
+        currentPrompt = null;
+        editor.innerHTML = '';
+        currentPromptLabel.textContent = 'No prompt loaded';
+        versionHistoryDiv.innerHTML = '';
+        updatePromptTabs();
+      } else {
+        alert('Prompt name did not match. Deletion cancelled.');
+      }
+    }
+
+    function saveVersion() {
+      if (!currentPrompt) {
+        alert('No prompt is currently loaded.');
+        return;
+      }
+      const content = editor.innerHTML;
+      const timestamp = new Date().toLocaleString();
+      const versionName = "Version " + (prompts[currentPrompt].versions.length + 1);
+      prompts[currentPrompt].versions.push({ content, timestamp, name: versionName });
+      prompts[currentPrompt].content = content;
+      renderVersionHistory();
+      alert('Version saved.');
+    }
+
+    function copyPrompt() {
+      if (!currentPrompt) {
+        alert('No prompt is currently loaded.');
+        return;
+      }
+      let text = editor.innerText;
+      const lines = text.split('\n');
+      const filtered = lines.filter(line => !line.trim().startsWith('#'));
+      const finalText = filtered.join('\n');
+      navigator.clipboard.writeText(finalText)
+        .then(() => alert('Prompt copied to clipboard (without comments).'))
+        .catch(err => alert('Error copying prompt: ' + err));
+    }
+
+    function exportFullText() {
+      if (!currentPrompt) {
+        alert('No prompt is currently loaded.');
+        return;
+      }
+      // Copy the complete text including comments
+      let fullText = editor.innerText;
+      navigator.clipboard.writeText(fullText)
+        .then(() => alert('Full text copied to clipboard (including comments).'))
+        .catch(err => alert('Error copying text: ' + err));
+    }
+
+    // ----- Modal for Instructions -----
+    instructionsBtn.addEventListener('click', () => {
+      instructionsModal.style.display = 'block';
+    });
+    closeModal.addEventListener('click', () => {
+      instructionsModal.style.display = 'none';
+    });
+    window.addEventListener('click', (event) => {
+      if (event.target === instructionsModal) {
+        instructionsModal.style.display = 'none';
+      }
+    });
+
+    // ----- New Auto-Completion Feature -----
+    // When the user types "<", automatically insert the following snippet:
+    //   &lt;<span class="tagName" contenteditable="true"></span>&gt;
+    //   <br><br>
+    //   &lt;/<span class="tagNameSync"></span>&gt;
+    // The caret is placed inside the .tagName span. As the user types, the .tagNameSync updates.
+    editor.addEventListener('keydown', function(e) {
+      if (e.key === '<') {
+        e.preventDefault();
+        insertTagSnippet();
+      }
+    });
+
+    function insertTagSnippet() {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+
+      // Create a container for the snippet
+      const container = document.createElement('span');
+      container.className = 'tagSnippet';
+      
+      // Create the HTML structure with opening and closing tags
+      container.innerHTML = 
+        '&lt;<span class="tagName" contenteditable="true"></span>&gt;<br><br>&lt;/<span class="tagNameSync"></span>&gt;';
+      
+      // Insert the container at the caret position
+      range.insertNode(container);
+      
+      // Get references to the opening tag name span and the closing tag name span
+      const tagNameSpan = container.querySelector('.tagName');
+      const closingTagSpan = container.querySelector('.tagNameSync');
+      
+      // Place the cursor inside the opening tag name span for immediate typing
+      const newRange = document.createRange();
+      newRange.selectNodeContents(tagNameSpan);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      
+      // Set up the real-time synchronization
+      // This event listener will run every time the user types in the opening tag
+      tagNameSpan.addEventListener('input', function() {
+        // Copy the content from opening tag to closing tag in real-time
+        closingTagSpan.textContent = tagNameSpan.textContent;
+      });
+    }
+
+    // ----- Keyboard Shortcuts -----
+    window.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveVersion();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        newPrompt();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        deleteCurrentPrompt();
+      }
+      if (e.key === 'Tab' && document.activeElement === editor) {
+        e.preventDefault();
+        const focusable = Array.from(document.querySelectorAll('button, [contenteditable]'));
+        const index = focusable.indexOf(document.activeElement);
+        const next = focusable[index + 1] || focusable[0];
+        next.focus();
+      }
+    });
+
+    // ----- Toggle Buttons -----
+    let sidebarVisible = true;
+    let versionHistoryVisible = true;
+    toggleSidebarBtn.addEventListener('click', () => {
+      sidebarVisible = !sidebarVisible;
+      sidebarContainer.style.display = sidebarVisible ? 'flex' : 'none';
+    });
+    toggleVersionHistoryBtn.addEventListener('click', () => {
+      versionHistoryVisible = !versionHistoryVisible;
+      versionHistoryDiv.style.display = versionHistoryVisible ? 'block' : 'none';
+    });
+
+    // ----- Resizing Logic for Sidebar -----
+    let isDraggingSidebar = false;
+    sidebarResizer.addEventListener('mousedown', (e) => {
+      isDraggingSidebar = true;
+      document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingSidebar) return;
+      const offsetLeft = sidebarContainer.getBoundingClientRect().left;
+      const newWidth = e.clientX - offsetLeft;
+      if (newWidth > 150 && newWidth < window.innerWidth * 0.5) {
+        sidebar.style.width = newWidth + 'px';
+      }
+    });
+    window.addEventListener('mouseup', () => {
+      isDraggingSidebar = false;
+      document.body.style.userSelect = 'auto';
+    });
+
+    // ----- Resizing Logic for Version History -----
+    let isDraggingVH = false;
+    versionHistoryResizer.addEventListener('mousedown', (e) => {
+      isDraggingVH = true;
+      document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingVH) return;
+      const editorContainerRect = editorContainer.getBoundingClientRect();
+      const bottom = editorContainerRect.bottom;
+      const newHeight = bottom - e.clientY;
+      if (newHeight > 50 && newHeight < window.innerHeight * 0.5) {
+        versionHistoryDiv.style.height = newHeight + 'px';
+      }
+    });
+    window.addEventListener('mouseup', () => {
+      isDraggingVH = false;
+      document.body.style.userSelect = 'auto';
+    });
+
+    // ----- Button Event Listeners -----
+    addPromptBtn.addEventListener('click', newPrompt);
+    saveVersionBtn.addEventListener('click', saveVersion);
+    copyPromptBtn.addEventListener('click', copyPrompt);
+    
+    // Add export full text functionality
+    const exportFullBtn = document.getElementById('exportFullBtn');
+    exportFullBtn.addEventListener('click', exportFullText);
+    
+    editor.addEventListener('blur', autoSaveCurrentPrompt);
+    window.addEventListener('beforeunload', autoSaveCurrentPrompt);
+  </script>
+</body>
+</html>
